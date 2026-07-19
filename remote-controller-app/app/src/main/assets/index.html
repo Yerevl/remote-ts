@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tailscale Remote Controller</title>
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090a0f;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-card-hover: rgba(255, 255, 255, 0.07);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      
+      /* Theme accents */
+      --accent-sleep: #f59e0b; /* Amber */
+      --accent-shutdown: #ef4444; /* Red */
+      --accent-abort: #3b82f6; /* Blue */
+      --accent-wifi: #f97316; /* Orange */
+      --accent-hotspot: #8b5cf6; /* Purple */
+      --accent-success: #10b981; /* Green */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+      background-attachment: fixed;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 500px;
+      margin-top: 1rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-success);
+      display: inline-block;
+      transition: all 0.3s ease;
+    }
+    
+    .status-dot.offline {
+      background-color: var(--accent-shutdown);
+      box-shadow: 0 0 8px var(--accent-shutdown);
+    }
+
+    .btn-settings {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-main);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-settings:active {
+      transform: scale(0.95);
+      background: var(--bg-card-hover);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    main {
+      width: 100%;
+      max-width: 500px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Grid configuration for command items */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    /* Big abort button covers full width */
+    .full-width-container {
+      grid-column: span 2;
+    }
+
+    /* Card styling */
+    .control-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      height: 145px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .control-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .control-card:active {
+      transform: scale(0.96) translateY(2px);
+      box-shadow: none !important;
+    }
+
+    /* Active Glowing states when toggled ON */
+    .control-card.active-state {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-sleep:active {
+      border-color: var(--accent-sleep);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+    }
+    .card-shutdown:active {
+      border-color: var(--accent-shutdown);
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.15);
+    }
+    .card-abort:active {
+      border-color: var(--accent-abort);
+      box-shadow: 0 0 25px rgba(59, 130, 246, 0.2);
+    }
+
+    /* Toggled ON Glows */
+    .card-wifi.active-state {
+      border-color: var(--accent-wifi);
+      box-shadow: 0 0 20px rgba(249, 115, 22, 0.12);
+    }
+    .card-hotspot.active-state {
+      border-color: var(--accent-hotspot);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.12);
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      color: var(--text-muted);
+      transition: all 0.3s ease;
+    }
+
+    /* Theme colors for icons when active/toggled ON */
+    .card-sleep .card-icon { color: var(--accent-sleep); background: rgba(245, 158, 11, 0.05); }
+    .card-shutdown .card-icon { color: var(--accent-shutdown); background: rgba(239, 68, 68, 0.05); }
+    .card-abort .card-icon { color: var(--accent-abort); background: rgba(59, 130, 246, 0.08); }
+    
+    /* WiFi & Hotspot styling changes when ON */
+    .card-wifi.active-state .card-icon { color: var(--accent-wifi); background: rgba(249, 115, 22, 0.1); }
+    .card-hotspot.active-state .card-icon { color: var(--accent-hotspot); background: rgba(139, 92, 246, 0.1); }
+    
+    /* Toggle pill indicator */
+    .toggle-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.02);
+      color: var(--text-muted);
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .active-state .toggle-pill {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: var(--accent-success);
+    }
+
+    .card-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      width: 100%;
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .card-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Full width card design override */
+    .card-abort {
+      height: 90px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 1.25rem;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+    }
+    
+    .card-abort .card-details {
+      flex: 1;
+    }
+
+    /* Notification Banner */
+    #notification {
+      position: fixed;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 2rem);
+      max-width: 480px;
+      background: rgba(13, 14, 21, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    #notification.show {
+      top: 1.25rem;
+    }
+
+    .notify-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: bold;
+    }
+
+    .notify-success { border-color: var(--accent-success); color: var(--accent-success); }
+    .notify-error { border-color: var(--accent-shutdown); color: var(--accent-shutdown); }
+
+    .notify-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notify-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .notify-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Settings Drawer Modal */
+    #modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    #modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #settings-drawer {
+      background: #0f111a;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 28px 28px 0 0;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      padding: 2rem 1.5rem;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    #modal-overlay.show #settings-drawer {
+      transform: translateY(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .input-field {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent-abort);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .btn-save {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 0.85rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .btn-save:active {
+      opacity: 0.85;
+    }
+
+    /* Loading overlay/indicator */
+    .spinner {
+      display: none;
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .control-card.loading .spinner {
+      display: block;
+    }
+    
+    .control-card.loading .toggle-pill {
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Custom Confirmation Modal */
+    #confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    #confirm-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .confirm-box {
+      background: #0f111a;
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2rem 1.5rem;
+      width: 90%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.25rem;
+      transform: scale(0.9);
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    #confirm-overlay.show .confirm-box {
+      transform: scale(1);
+    }
+
+    .confirm-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-sleep);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .confirm-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .confirm-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .confirm-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .btn-confirm {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.75rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .btn-confirm:active {
+      opacity: 0.85;
+    }
+
+    .btn-cancel {
+      background: rgba(255,255,255,0.03);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.75rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-cancel:active {
+      background: var(--bg-card-hover);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Remote Controller</h1>
+      <div class="subtitle">
+        <span class="status-dot offline" id="status-indicator"></span>
+        <span id="connection-state">Offline</span>
+      </div>
+    </div>
+    <button class="btn-settings" id="open-settings" aria-label="Open Settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <main>
+    <div class="grid-container">
+      
+      <!-- WIFI TOGGLE CARD -->
+      <div class="control-card card-wifi" id="btn-wifi" data-type="toggle">
+        <div class="spinner"></div>
+        <div class="toggle-pill" id="pill-wifi">OFF</div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.5a10.94 10.94 0 0 1 14 0"></path>
+            <path d="M1 9a15.9 15.9 0 0 1 22 0"></path>
+            <path d="M9 16a4.25 4.25 0 0 1 6 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20" stroke-width="2"></line>
+          </svg>
+        </div>
+        <div class="card-details">
+          <div class="card-title" id="title-wifi">Wi-Fi</div>
+          <div class="card-desc" id="desc-wifi">Toggle laptop Wi-Fi adapter</div>
+        </div>
+      </div>
+
+      <!-- HOTSPOT TOGGLE CARD -->
+      <div class="control-card card-hotspot" id="btn-hotspot" data-type="toggle">
+        <div class="spinner"></div>
+        <div class="toggle-pill" id="pill-hotspot">OFF</div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+          </svg>
+        </div>
+        <div class="card-details">
+          <div class="card-title" id="title-hotspot">Hotspot</div>
+          <div class="card-desc" id="desc-hotspot">Toggle Windows Mobile Hotspot</div>
+        </div>
+      </div>
+
+      <!-- SHUTDOWN CARD -->
+      <div class="control-card card-shutdown" data-command="shutdown">
+        <div class="spinner"></div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <div class="card-details">
+          <div class="card-title">Shutdown</div>
+          <div class="card-desc">Turn off system (60s timer)</div>
+        </div>
+      </div>
+
+      <!-- HIBERNATE CARD -->
+      <div class="control-card card-sleep" data-command="sleep">
+        <div class="spinner"></div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </div>
+        <div class="card-details">
+          <div class="card-title">Hibernate</div>
+          <div class="card-desc">Put laptop to hibernate</div>
+        </div>
+      </div>
+
+      <!-- ABORT SHUTDOWN (FULL WIDTH) -->
+      <div class="full-width-container">
+        <div class="control-card card-abort" data-command="abort_shutdown">
+          <div class="spinner"></div>
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+            </svg>
+          </div>
+          <div class="card-details">
+            <div class="card-title">Cancel Pending Shutdown</div>
+            <div class="card-desc">Safety switch: Intercept and abort active timer</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Success/Error Toast notification -->
+  <div id="notification">
+    <div class="notify-icon" id="notify-icon">!</div>
+    <div class="notify-content">
+      <div class="notify-title" id="notify-title">Command Triggered</div>
+      <div class="notify-desc" id="notify-desc">Payload sent over WireGuard Tunnel</div>
+    </div>
+  </div>
+
+  <!-- Settings Drawer Modal -->
+  <div id="modal-overlay">
+    <div id="settings-drawer">
+      <div class="drawer-header">
+        <h2 class="drawer-title">Connection Parameters</h2>
+        <button class="btn-close" id="close-settings">✕</button>
+      </div>
+      
+      <div class="form-group">
+        <label for="host-ip">Node Tailscale IP</label>
+        <input type="text" id="host-ip" class="input-field" placeholder="100.X.Y.Z" value="100.95.148.41">
+      </div>
+
+      <div class="form-group">
+        <label for="host-port">TCP Communication Port</label>
+        <input type="number" id="host-port" class="input-field" placeholder="8080" value="8080">
+      </div>
+
+      <button class="btn-save" id="save-settings">Save & Re-Connect</button>
+    </div>
+  </div>
+
+  <!-- Custom Hibernate Confirmation Modal -->
+  <div id="confirm-overlay">
+    <div class="confirm-box">
+      <div class="confirm-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </div>
+      <h3 class="confirm-title">Hibernate System</h3>
+      <p class="confirm-desc">Are you sure you want to hibernate your laptop? You will need to physically press the power button to wake it up again.</p>
+      <div class="confirm-buttons">
+        <button class="btn-cancel" id="btn-confirm-cancel">Cancel</button>
+        <button class="btn-confirm" id="btn-confirm-ok">Yes, Hibernate</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // App State Configuration
+    let config = {
+      ip: '100.95.148.41',
+      port: 8080
+    };
+
+    // Hardware State tracked from backend
+    let hardwareState = {
+      wifi: 'on',
+      hotspot: 'off',
+      online: false
+    };
+
+    // DOM Elements
+    const cards = document.querySelectorAll('.control-card[data-command]');
+
+    const wifiCard = document.getElementById('btn-wifi');
+    const wifiPill = document.getElementById('pill-wifi');
+    const wifiTitle = document.getElementById('title-wifi');
+    const wifiDesc = document.getElementById('desc-wifi');
+    
+    const hotspotCard = document.getElementById('btn-hotspot');
+    const hotspotPill = document.getElementById('pill-hotspot');
+    const hotspotTitle = document.getElementById('title-hotspot');
+    const hotspotDesc = document.getElementById('desc-hotspot');
+
+    const openSettingsBtn = document.getElementById('open-settings');
+    const closeSettingsBtn = document.getElementById('close-settings');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const settingsDrawer = document.getElementById('settings-drawer');
+    const inputIp = document.getElementById('host-ip');
+    const inputPort = document.getElementById('host-port');
+    const statusIndicator = document.getElementById('status-indicator');
+    const connectionState = document.getElementById('connection-state');
+    
+    // Notification elements
+    const toast = document.getElementById('notification');
+    const toastTitle = document.getElementById('notify-title');
+    const toastDesc = document.getElementById('notify-desc');
+    const toastIcon = document.getElementById('notify-icon');
+
+    // Custom Confirm Modal elements
+    const confirmOverlay = document.getElementById('confirm-overlay');
+    const confirmCancelBtn = document.getElementById('btn-confirm-cancel');
+    const confirmOkBtn = document.getElementById('btn-confirm-ok');
+    let pendingConfirmResolve = null;
+
+    function showConfirmModal() {
+      triggerVibration(20);
+      confirmOverlay.classList.add('show');
+      return new Promise((resolve) => {
+        pendingConfirmResolve = resolve;
+      });
+    }
+
+    function closeConfirmModal(result) {
+      triggerVibration(10);
+      confirmOverlay.classList.remove('show');
+      if (pendingConfirmResolve) {
+        pendingConfirmResolve(result);
+        pendingConfirmResolve = null;
+      }
+    }
+
+    confirmCancelBtn.addEventListener('click', () => closeConfirmModal(false));
+    confirmOkBtn.addEventListener('click', () => closeConfirmModal(true));
+    confirmOverlay.addEventListener('click', (e) => {
+      if (e.target === confirmOverlay) closeConfirmModal(false);
+    });
+
+    // Load Configuration
+    async function loadConfiguration() {
+      try {
+        const response = await fetch('./config.json');
+        if (response.ok) {
+          const remoteConfig = await response.json();
+          if (remoteConfig.ip && remoteConfig.port) {
+            config.ip = remoteConfig.ip;
+            config.port = remoteConfig.port;
+          }
+        }
+      } catch (err) {
+        const storedIp = localStorage.getItem('remote_ts_ip');
+        const storedPort = localStorage.getItem('remote_ts_port');
+        if (storedIp && storedPort) {
+          config.ip = storedIp;
+          config.port = parseInt(storedPort, 10);
+        }
+      }
+      
+      inputIp.value = config.ip;
+      inputPort.value = config.port;
+      
+      // Start connection polling
+      pollSystemStatus();
+      setInterval(pollSystemStatus, 5000);
+    }
+
+    // Update connection status header
+    function setOnlineState(isOnline) {
+      hardwareState.online = isOnline;
+      if (isOnline) {
+        statusIndicator.className = "status-dot";
+        connectionState.textContent = `Connected: ${config.ip}`;
+      } else {
+        statusIndicator.className = "status-dot offline";
+        connectionState.textContent = `Offline: ${config.ip}`;
+      }
+    }
+
+    // Fetch dynamic status from backend /status
+    async function pollSystemStatus() {
+      const statusUrl = `http://${config.ip}:${config.port}/status`;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        const response = await fetch(statusUrl, { 
+          signal: controller.signal,
+          mode: 'cors'
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            hardwareState.wifi = result.wifi;
+            hardwareState.hotspot = result.hotspot;
+            updateHardwareUI();
+            setOnlineState(true);
+            return;
+          }
+        }
+        setOnlineState(false);
+      } catch (err) {
+        setOnlineState(false);
+      }
+    }
+
+    // Update UI elements to match hardwareState
+    function updateHardwareUI() {
+      // WiFi UI update
+      if (hardwareState.wifi === 'on') {
+        wifiCard.classList.add('active-state');
+        wifiPill.textContent = 'ON';
+        wifiTitle.textContent = 'Wi-Fi: Enabled';
+        wifiDesc.textContent = 'Tap to turn Wi-Fi OFF';
+      } else {
+        wifiCard.classList.remove('active-state');
+        wifiPill.textContent = 'OFF';
+        wifiTitle.textContent = 'Wi-Fi: Disabled';
+        wifiDesc.textContent = 'Tap to turn Wi-Fi ON';
+      }
+
+      // Hotspot UI update
+      if (hardwareState.hotspot === 'on') {
+        hotspotCard.classList.add('active-state');
+        hotspotPill.textContent = 'ON';
+        hotspotTitle.textContent = 'Hotspot: Active';
+        hotspotDesc.textContent = 'Tap to stop Hotspot';
+      } else {
+        hotspotCard.classList.remove('active-state');
+        hotspotPill.textContent = 'OFF';
+        hotspotTitle.textContent = 'Hotspot: Inactive';
+        hotspotDesc.textContent = 'Tap to start Hotspot';
+      }
+    }
+
+    // Save overlay configuration updates
+    function saveConfiguration() {
+      const targetIp = inputIp.value.trim();
+      const targetPort = parseInt(inputPort.value.trim(), 10);
+
+      if (!targetIp || !targetIp.startsWith('100.')) {
+        showToast('Configuration Failed', 'Security Constraint: Must bind to Tailscale IP (100.X.Y.Z)', false);
+        return;
+      }
+
+      if (isNaN(targetPort) || targetPort <= 0 || targetPort > 65535) {
+        showToast('Configuration Failed', 'Please input a valid TCP Port number (1-65535)', false);
+        return;
+      }
+
+      config.ip = targetIp;
+      config.port = targetPort;
+
+      localStorage.setItem('remote_ts_ip', config.ip);
+      localStorage.setItem('remote_ts_port', config.port);
+
+      closeModal();
+      pollSystemStatus();
+      showToast('Configuration Saved', `Targeting host interface ${config.ip}:${config.port}`, true);
+    }
+
+    // Trigger toast alerts
+    let toastTimeout;
+    function showToast(title, desc, isSuccess = true) {
+      clearTimeout(toastTimeout);
+      
+      toastTitle.textContent = title;
+      toastDesc.textContent = desc;
+      
+      toastIcon.className = `notify-icon ${isSuccess ? 'notify-success' : 'notify-error'}`;
+      toastIcon.textContent = isSuccess ? '✓' : '✕';
+
+      toast.classList.add('show');
+      
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 4000);
+    }
+
+    // Haptics helper
+    function triggerVibration(pattern = 50) {
+      if ('vibrate' in navigator) {
+        try {
+          navigator.vibrate(pattern);
+        } catch (e) {}
+      }
+    }
+
+    // Send HTTP POST commands
+    async function executeCommand(card, commandToken) {
+      if (!hardwareState.online) {
+        showToast('Device Offline', 'Cannot reach backend server. Verify Tailscale is active.', false);
+        return;
+      }
+
+      card.classList.add('loading');
+      triggerVibration([60, 40, 60]);
+
+      const targetUrl = `http://${config.ip}:${config.port}/command`;
+
+      try {
+        const response = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: commandToken,
+          mode: 'cors'
+        });
+
+        const result = await response.json();
+        card.classList.remove('loading');
+
+        if (response.ok && result.success) {
+          triggerVibration(150);
+          showToast('Action Dispatched', `Command '${commandToken}' completed successfully.`, true);
+          
+          // Re-poll status immediately on toggle success
+          setTimeout(pollSystemStatus, 1000);
+        } else {
+          triggerVibration([200, 100, 200]);
+          showToast('Action Failed', result.error || 'Server error occurred', false);
+        }
+      } catch (err) {
+        card.classList.remove('loading');
+        triggerVibration([200, 100, 200]);
+        showToast('Connection Failed', 'Lost connection to host daemon.', false);
+      }
+    }
+
+    // Settings Modal handlers
+    function openModal() {
+      modalOverlay.classList.add('show');
+      triggerVibration(20);
+    }
+
+    function closeModal() {
+      modalOverlay.classList.remove('show');
+      triggerVibration(10);
+    }
+
+    // Event Bindings
+    cards.forEach(card => {
+      card.addEventListener('click', async () => {
+        const cmd = card.getAttribute('data-command');
+        if (cmd === 'sleep') {
+          const confirmed = await showConfirmModal();
+          if (confirmed) {
+            executeCommand(card, cmd);
+          }
+        } else {
+          executeCommand(card, cmd);
+        }
+      });
+    });
+
+    // WiFi toggle logic
+    wifiCard.addEventListener('click', () => {
+      if (wifiCard.classList.contains('loading')) return;
+
+      if (hardwareState.wifi === 'on') {
+        if (confirm("Are you sure you want to turn Wi-Fi OFF?\n\nWarning: This will disconnect you unless your laptop is connected via Ethernet.")) {
+          executeCommand(wifiCard, 'wifi_off');
+        }
+      } else {
+        executeCommand(wifiCard, 'wifi_on');
+      }
+    });
+
+    // Hotspot toggle logic
+    hotspotCard.addEventListener('click', () => {
+      if (hotspotCard.classList.contains('loading')) return;
+
+      if (hardwareState.hotspot === 'on') {
+        executeCommand(hotspotCard, 'hotspot_off');
+      } else {
+        executeCommand(hotspotCard, 'hotspot_on');
+      }
+    });
+
+    openSettingsBtn.addEventListener('click', openModal);
+    closeSettingsBtn.addEventListener('click', closeModal);
+    saveSettingsBtn.addEventListener('click', saveConfiguration);
+
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    // Start App
+    window.addEventListener('DOMContentLoaded', loadConfiguration);
+  </script>
+</body>
+</html>

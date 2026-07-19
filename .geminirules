@@ -1,0 +1,24 @@
+# Network Binding Resilience Policy
+
+## Context
+Background servers or backend daemons configured to run on system boot (e.g., via Task Scheduler, Startup folder, or Services) may attempt to start before virtual network adapters (like Tailscale) or physical interfaces are fully initialized and assigned their IP addresses.
+
+## Rules
+1. **Never Exit on Bind Failures**: Do not call `process.exit()` or crash the application when a network bind fails (e.g., with `EADDRNOTAVAIL` or `ENETUNREACH`) if the server is designed to run persistently or start on boot.
+2. **Implement Retry Loops**: Always implement a retry loop (checking the network interface status or retrying the listen/bind call every 1 second) to wait for the network interface to become active.
+3. **Log Warn Messages**: Print clear warning logs about the retry attempts so that debugging startup delays is straightforward.
+
+
+## Windows System & Hardware Control
+
+4. **Service-Account Power Transitions**: When implementing sleep/hibernate calls inside background tasks (e.g., running under the `SYSTEM` account in Session 0), do not load desktop-dependent namespaces like `System.Windows.Forms`. Use P/Invoke to explicitly enable the `SeShutdownPrivilege` in the process token before calling `SetSuspendState` in `powrprof.dll`.
+
+5. **Modern Hotspot Control**: Always manage the Windows Mobile Hotspot using the modern WinRT `NetworkOperatorTetheringManager` APIs via PowerShell, falling back to all active connection profiles if `GetInternetConnectionProfile()` is null. Do not use legacy netsh command lines.
+
+6. **Orphan Process Prevention**: When updating or re-registering persistent background tasks via `Register-ScheduledTask`, always run `Stop-ScheduledTask` first to terminate any existing process instance and release port bindings before starting the new instance.
+
+
+## Client WebView Compatibility
+
+7. **Avoid Native Dialogs**: Do not use native browser dialogs (`alert()`, `confirm()`, `prompt()`) in web files compiled into hybrid mobile apps (WebViews), as they are suppressed by default. Build custom HTML/CSS modal overlays to ensure cross-platform compatibility and a premium UI.
+
