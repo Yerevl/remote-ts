@@ -17,8 +17,12 @@ Background servers or backend daemons configured to run on system boot (e.g., vi
 
 6. **Orphan Process Prevention**: When updating or re-registering persistent background tasks via `Register-ScheduledTask`, always run `Stop-ScheduledTask` first to terminate any existing process instance and release port bindings before starting the new instance.
 
+7. **Private IP Redaction & Portability**: Always use generic placeholders (e.g., `100.X.Y.Z`) for default network configurations in version-controlled client and server files. Dynamically load actual network configurations from gitignored local files (e.g., `config.json`) or browser storage (`localStorage`) to keep the repo secure and portable.
+
+8. **Android Distribution Builds**: When distributing pre-compiled packages in public repositories without formal keystores, compile in debug mode (`./gradlew assembleDebug`) so that Gradle signs the APK with a local debug key, making the binary immediately installable by others.
+
 
 ## Client WebView Compatibility
 
-7. **Avoid Native Dialogs**: Do not use native browser dialogs (`alert()`, `confirm()`, `prompt()`) in web files compiled into hybrid mobile apps (WebViews), as they are suppressed by default. Build custom HTML/CSS modal overlays to ensure cross-platform compatibility and a premium UI.
+9. **Avoid Native Dialogs**: Do not use native browser dialogs (`alert()`, `confirm()`, `prompt()`) in web files compiled into hybrid mobile apps (WebViews), as they are suppressed by default. Build custom HTML/CSS modal overlays to ensure cross-platform compatibility and a premium UI.
 
