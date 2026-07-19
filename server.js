@@ -30,7 +30,7 @@ console.error = function(...args) {
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 // Read config.json
-let config = { ip: '100.95.148.41', port: 8080 };
+let config = { ip: '100.X.Y.Z', port: 8080 };
 try {
   if (fs.existsSync(CONFIG_PATH)) {
     const rawData = fs.readFileSync(CONFIG_PATH, 'utf-8');
