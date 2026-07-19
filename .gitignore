@@ -7,6 +7,4 @@ node_modules/
 # Local network bindings configuration (Tailscale IP/Port)
 config.json
 
-# Compiled binaries
-*.apk
 
