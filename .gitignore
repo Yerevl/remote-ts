@@ -9,5 +9,7 @@ config.json
 
 # AI / Workspace configurations
 .geminirules
+antigravity-spec.md
+GITHUB_GUIDE.md
 
 
