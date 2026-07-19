@@ -1,6 +1,6 @@
 # Tailscale Remote System Controller
 
-A lightweight, secure, and decoupled remote control suite (Backend Daemon + Mobile Touch Web UI) designed to run exclusively across a private Tailscale overlay network.
+A lightweight, zero-trust remote control suite (Backend Daemon + Mobile Touch Web UI) designed to run exclusively across a private Tailscale overlay network. It allows you to toggle Wi-Fi, control a mobile hotspot, hibernate/sleep, and trigger shutdown timers on a Windows host machine directly from your Android phone.
 
 ---
 
@@ -25,13 +25,49 @@ graph TD
 
 ---
 
-## File Structure
+## Prerequisites
 
-*   **[server.js](file:///C:/Tools/remote-ts/server.js)**: The HTTP backend daemon. Includes automatic logging to `server.log` and IP constraints.
-*   **[control.ps1](file:///C:/Tools/remote-ts/control.ps1)**: The core Windows hardware connector. Toggles Wi-Fi, initiates clean hibernation, and manages the modern Windows hotspot.
-*   **[setup-admin-autostart.bat](file:///C:/Tools/remote-ts/setup-admin-autostart.bat)**: An installer script. Run as Administrator to register the backend daemon to boot automatically on startup under the `SYSTEM` account.
-*   **[index.html](file:///C:/Tools/remote-ts/index.html)**: The web UI served by the daemon.
-*   **[RemoteController-v1.0.7.apk](file:///C:/Tools/remote-ts/RemoteController-v1.0.7.apk)**: The compiled Android application carrying the updated UI asset bundle.
+*   **Host Machine**: Windows 10 or 11 with Node.js installed.
+*   **Overlay Network**: Tailscale active on both your Windows host and your Android phone.
+*   **Android Device**: Running Android 7.0 (API 24) or newer.
+
+---
+
+## Installation & Setup
+
+### Step 1: Clone the Repository
+Clone this repository to your target Windows machine:
+```bash
+git clone https://github.com/Yerevl/remote-ts.git
+cd remote-ts
+```
+
+### Step 2: Configure Network Parameters
+1. Find your Windows machine's Tailscale IP address (starts with `100.`).
+2. Copy `config.example.json` and name it `config.json`:
+   ```bash
+   copy config.example.json config.json
+   ```
+3. Open `config.json` and replace `100.X.Y.Z` with your machine's Tailscale IP address:
+   ```json
+   {
+     "ip": "100.95.148.41",
+     "port": 8080
+   }
+   ```
+   *(Note: `config.json` is ignored by Git, so your IP configuration stays local to your machine.)*
+
+### Step 3: Register and Start the Daemon
+To make the backend server run automatically in the background when your computer boots:
+1. Right-click **`setup-admin-autostart.bat`** and select **Run as administrator**.
+2. This script will register a Windows Scheduled Task named `TailscaleRemoteController` to run under the `SYSTEM` account on startup (no user login required).
+3. The daemon starts running immediately in the background.
+
+*To verify it is listening, you can inspect the newly created `server.log` file in the project folder.*
+
+### Step 4: Install the Android App
+*   **Quick Install**: Transfer the pre-built **`RemoteController-v1.0.7.apk`** from the root of this repository to your Android phone and install it.
+*   **Compile from Source**: If you want to build it yourself, open the `remote-controller-app` directory in Android Studio (or run `./gradlew assembleDebug` via terminal) to compile your own APK.
 
 ---
 
@@ -60,13 +96,12 @@ $tetheringManager.StopTetheringAsync()
 
 ---
 
-## Troubleshooting & Maintenance
+## Troubleshooting & Diagnostics
 
-### To update the background service:
-If you make changes to `server.js` or `control.ps1`, right-click **[setup-admin-autostart.bat](file:///C:/Tools/remote-ts/setup-admin-autostart.bat)** and choose **Run as administrator**. This automatically stops the old daemon instance, updates the startup schedule, and restarts the backend immediately.
-
-### To view backend log output:
-Open **[server.log](file:///C:/Tools/remote-ts/server.log)** in the project directory. All commands dispatched from the phone and system status checks are logged with timestamps.
-
-### Hardware Dependency:
-The Mobile Hotspot requires your Wi-Fi adapter to be active. If you toggle Wi-Fi OFF in the app, the mobile hotspot will automatically turn off.
+*   **Mobile App shows Offline**:
+    1. Verify Tailscale is active and connected on both the phone and Windows PC.
+    2. Open the Settings panel in the Android app (gear icon at the top right) and ensure the IP and Port matches your `config.json`.
+*   **Viewing Server Logs**:
+    Open the local `server.log` file in your repository. It tracks incoming commands, timestamps, and network statuses.
+*   **Wi-Fi / Hotspot dependency**:
+    The Mobile Hotspot requires your Wi-Fi adapter to be enabled. If you turn Wi-Fi OFF in the app, the mobile hotspot will automatically turn off.
